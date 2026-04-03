@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id         Int         @id @default(autoincrement())
+  code       String      @unique
+  name       String
+  price      Float
+  stock      Int         @default(0)
+  orderItems OrderItem[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model LiveSession {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique
+  title     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  orders    Order[]
+}
+
+model Order {
+  id             Int          @id @default(autoincrement())
+  customerName   String?
+  channel        String       @default("COMMENT")
+  status         String       @default("pending")
+  liveSessionId  Int?
+  liveSession    LiveSession? @relation(fields: [liveSessionId], references: [id])
+  items          OrderItem[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+}
