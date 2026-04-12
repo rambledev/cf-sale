@@ -33,7 +33,23 @@ interface Row extends ParsedLine {
   product?: Product
 }
 
-const EXAMPLE = `โบ A01 2\nแดง A01 1\nนิด B02 3`
+const EXAMPLE = `โบ/A01/M/2\nแดง/A01/XL/1\nนิด/B02/3\nแนน/C01/1`
+
+// ── Format guide data ─────────────────────────────────────
+const FORMAT_EXAMPLES = [
+  {
+    label: 'มีไซส์',
+    format: 'ชื่อ / รหัสสินค้า / ไซส์ / จำนวน',
+    example: 'โบ/A01/M/2',
+    desc: 'ชื่อโบ สินค้า A01 ไซส์ M จำนวน 2 ชิ้น',
+  },
+  {
+    label: 'ไม่มีไซส์',
+    format: 'ชื่อ / รหัสสินค้า / จำนวน',
+    example: 'โบ/A01/2',
+    desc: 'ชื่อโบ สินค้า A01 จำนวน 2 ชิ้น',
+  },
+]
 
 export default function CommentsPage() {
   const [text, setText] = useState('')
@@ -56,11 +72,7 @@ export default function CommentsPage() {
     const newRows: Row[] = parsed.map((line) => {
       const product = productMap[line.productCode]
       if (!product) {
-        return {
-          ...line,
-          rowStatus: 'error',
-          errorMessage: `ไม่พบสินค้า ${line.productCode}`,
-        }
+        return { ...line, rowStatus: 'error', errorMessage: `ไม่พบสินค้า ${line.productCode}` }
       }
       return { ...line, rowStatus: 'pending', product }
     })
@@ -85,6 +97,7 @@ export default function CommentsPage() {
           customerName: row.customerName,
           productCode: row.productCode,
           quantity: row.quantity,
+          size: row.size,
         }),
       })
 
@@ -93,9 +106,7 @@ export default function CommentsPage() {
       if (!res.ok) {
         setRows((prev) =>
           prev.map((r, i) =>
-            i === index
-              ? { ...r, rowStatus: 'error', errorMessage: data.error }
-              : r
+            i === index ? { ...r, rowStatus: 'error', errorMessage: data.error } : r
           )
         )
       } else {
@@ -104,7 +115,6 @@ export default function CommentsPage() {
             i === index ? { ...r, rowStatus: 'confirmed', order: data } : r
           )
         )
-        // Refresh products to show updated stock
         fetch('/api/products')
           .then((r) => r.json())
           .then(setProducts)
@@ -123,8 +133,9 @@ export default function CommentsPage() {
     }
   }
 
-  const pendingCount = rows.filter((r) => r.rowStatus === 'pending').length
+  const pendingCount   = rows.filter((r) => r.rowStatus === 'pending').length
   const confirmedCount = rows.filter((r) => r.rowStatus === 'confirmed').length
+  const hasSize        = rows.some((r) => r.size)
 
   return (
     <div className="space-y-6">
@@ -133,25 +144,44 @@ export default function CommentsPage() {
         <p className="text-gray-500 text-sm mt-1">วางคอมเมนต์จาก Live แล้วประมวลผลออเดอร์</p>
       </div>
 
-      {/* Input */}
+      {/* ── Format Guide ───────────────────────────────── */}
+      <div className="bg-brand-50 border border-brand-200 rounded-xl p-4 space-y-3">
+        <p className="text-sm font-semibold text-brand-800">รูปแบบคอมเมนต์ที่รองรับ</p>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {FORMAT_EXAMPLES.map((f) => (
+            <div key={f.label} className="bg-white border border-brand-100 rounded-lg px-4 py-3 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full">
+                  {f.label}
+                </span>
+              </div>
+              <p className="text-xs text-gray-400">{f.format}</p>
+              <code className="block text-sm font-bold text-brand-700">{f.example}</code>
+              <p className="text-xs text-gray-500">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-gray-400">
+          คั่นด้วย <strong>/</strong> (slash) · ไซส์เช่น S, M, L, XL, XXL, 2XL · รองรับตัวพิมพ์เล็ก-ใหญ่
+        </p>
+      </div>
+
+      {/* ── Input ──────────────────────────────────────── */}
       <div className="card space-y-3">
         <div className="flex items-center justify-between">
           <label className="label mb-0">วางคอมเมนต์ที่นี่</label>
           <button
-            onClick={() => setText(EXAMPLE)}
+            onClick={() => { setText(EXAMPLE); setProcessed(false) }}
             className="text-xs text-brand-600 hover:underline"
           >
             ใช้ตัวอย่าง
           </button>
         </div>
         <textarea
-          className="input font-mono h-40 resize-y"
-          placeholder={`โบ A01 2\nแดง A01 1\nนิด B02 3`}
+          className="input font-mono h-44 resize-y"
+          placeholder={`โบ/A01/M/2\nแดง/A01/XL/1\nนิด/B02/3`}
           value={text}
-          onChange={(e) => {
-            setText(e.target.value)
-            setProcessed(false)
-          }}
+          onChange={(e) => { setText(e.target.value); setProcessed(false) }}
         />
         <div className="flex gap-3 flex-wrap">
           <button
@@ -163,23 +193,16 @@ export default function CommentsPage() {
           </button>
           {processed && (
             <button
-              onClick={() => {
-                setText('')
-                setRows([])
-                setProcessed(false)
-              }}
+              onClick={() => { setText(''); setRows([]); setProcessed(false) }}
               className="btn-outline px-4 py-2.5"
             >
               เคลียร์
             </button>
           )}
         </div>
-        <div className="text-xs text-gray-400">
-          รองรับ: <code>A01 2</code> · <code>A01 x2</code> · <code>ชื่อ A01 2</code>
-        </div>
       </div>
 
-      {/* Results Table */}
+      {/* ── Results Table ──────────────────────────────── */}
       {rows.length > 0 && (
         <div className="card p-0 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
@@ -206,6 +229,7 @@ export default function CommentsPage() {
                   <th className="px-4 py-3 text-left">ชื่อลูกค้า</th>
                   <th className="px-4 py-3 text-left">รหัสสินค้า</th>
                   <th className="px-4 py-3 text-left">ชื่อสินค้า</th>
+                  {hasSize && <th className="px-4 py-3 text-center">ไซส์</th>}
                   <th className="px-4 py-3 text-right">จำนวน</th>
                   <th className="px-4 py-3 text-right">ราคา</th>
                   <th className="px-4 py-3 text-center">สถานะ</th>
@@ -215,7 +239,7 @@ export default function CommentsPage() {
               <tbody className="divide-y divide-gray-100">
                 {rows.map((row, i) => {
                   const product = row.product || productMap[row.productCode]
-                  const subtotal = product ? product.price * row.quantity : 0
+                  const subtotal = product ? Number(product.price) * row.quantity : 0
 
                   return (
                     <tr
@@ -246,6 +270,17 @@ export default function CommentsPage() {
                           <span className="text-red-400">ไม่พบสินค้า</span>
                         )}
                       </td>
+                      {hasSize && (
+                        <td className="px-4 py-3 text-center">
+                          {row.size ? (
+                            <span className="inline-block bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-0.5 rounded">
+                              {row.size}
+                            </span>
+                          ) : (
+                            <span className="text-gray-300">-</span>
+                          )}
+                        </td>
+                      )}
                       <td className="px-4 py-3 text-right">{row.quantity}</td>
                       <td className="px-4 py-3 text-right font-medium">
                         {product ? (
@@ -273,10 +308,7 @@ export default function CommentsPage() {
                       <td className="px-4 py-3 text-center">
                         {row.rowStatus === 'pending' && (
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleConfirm(i)
-                            }}
+                            onClick={(e) => { e.stopPropagation(); handleConfirm(i) }}
                             className="btn-green text-xs px-3 py-1.5"
                           >
                             ยืนยัน

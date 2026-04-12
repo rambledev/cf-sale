@@ -3,16 +3,19 @@
 import { usePathname } from 'next/navigation'
 import Navbar from './Navbar'
 
+const AUTH_PATHS = ['/login', '/register']
+
 export default function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isLive = pathname.startsWith('/live/')
 
-  if (isLive) {
-    // Customer-facing: no admin navbar, orange theme, full-width
+  if (AUTH_PATHS.includes(pathname)) {
+    return <>{children}</>
+  }
+
+  if (pathname.startsWith('/live/')) {
     return <div className="min-h-screen bg-orange-50">{children}</div>
   }
 
-  // Admin/Seller: white + yellow theme with navbar
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />

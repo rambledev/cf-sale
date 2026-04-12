@@ -6,7 +6,7 @@ interface CartItem {
   quantity: number
 }
 
-/** Public: submit cart order from live link */
+/** Public: submit cart order from live link (no auth required) */
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -34,10 +34,12 @@ export async function POST(
     return NextResponse.json({ error: 'ปิดรับออเดอร์แล้ว' }, { status: 400 })
   }
 
-  // Validate all items + stock
+  const { workspaceId } = session
+
+  // Validate all items + stock (scoped to this workspace)
   const productIds = items.map((i) => i.productId)
   const products = await prisma.product.findMany({
-    where: { id: { in: productIds } },
+    where: { id: { in: productIds }, workspaceId },
   })
 
   const productMap = Object.fromEntries(products.map((p) => [p.id, p]))
@@ -65,11 +67,13 @@ export async function POST(
         customerName: customerName.trim(),
         channel: 'CART',
         status: 'pending',
+        workspaceId,
         liveSessionId: session.id,
         items: {
           create: items.map((item) => ({
             productId: item.productId,
             quantity: item.quantity,
+            workspaceId,
           })),
         },
       },

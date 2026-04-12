@@ -7,43 +7,72 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Workspace {
+  id           String        @id @default(cuid())
+  name         String
+  users        User[]
+  products     Product[]
+  orders       Order[]
+  liveSessions LiveSession[]
+  createdAt    DateTime      @default(now())
+}
+
+model User {
+  id          String    @id @default(cuid())
+  name        String
+  phone       String    @unique
+  pinHash     String
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  createdAt   DateTime  @default(now())
+}
+
 model Product {
-  id         Int         @id @default(autoincrement())
-  code       String      @unique
-  name       String
-  price      Float
-  stock      Int         @default(0)
-  orderItems OrderItem[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id          Int         @id @default(autoincrement())
+  code        String
+  name        String
+  price       Decimal     @db.Decimal(10, 2)
+  stock       Int         @default(0)
+  workspaceId String
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id])
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([code, workspaceId])
 }
 
 model LiveSession {
-  id        Int      @id @default(autoincrement())
-  slug      String   @unique
-  title     String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  orders    Order[]
+  id          Int       @id @default(autoincrement())
+  slug        String    @unique
+  title       String?
+  isActive    Boolean   @default(true)
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  createdAt   DateTime  @default(now())
+  orders      Order[]
 }
 
 model Order {
-  id             Int          @id @default(autoincrement())
-  customerName   String?
-  channel        String       @default("COMMENT")
-  status         String       @default("pending")
-  liveSessionId  Int?
-  liveSession    LiveSession? @relation(fields: [liveSessionId], references: [id])
-  items          OrderItem[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id            Int          @id @default(autoincrement())
+  customerName  String?
+  channel       String       @default("COMMENT")
+  status        String       @default("pending")
+  workspaceId   String
+  workspace     Workspace    @relation(fields: [workspaceId], references: [id])
+  liveSessionId Int?
+  liveSession   LiveSession? @relation(fields: [liveSessionId], references: [id])
+  items         OrderItem[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 model OrderItem {
-  id        Int     @id @default(autoincrement())
-  orderId   Int
-  productId Int
-  quantity  Int
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product   Product @relation(fields: [productId], references: [id])
+  id          Int     @id @default(autoincrement())
+  orderId     Int
+  productId   Int
+  quantity    Int
+  workspaceId String
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product @relation(fields: [productId], references: [id])
 }

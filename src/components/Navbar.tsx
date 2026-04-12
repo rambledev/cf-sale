@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 const links = [
   { href: '/', label: 'แดชบอร์ด', exact: true },
@@ -13,9 +14,24 @@ const links = [
 
 export default function Navbar() {
   const pathname = usePathname()
+  const router = useRouter()
+  const [userName, setUserName] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((d) => d.userName && setUserName(d.userName))
+      .catch(() => {})
+  }, [])
 
   const isActive = (href: string, exact: boolean) =>
     exact ? pathname === href : pathname.startsWith(href)
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    router.push('/login')
+    router.refresh()
+  }
 
   return (
     <nav className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
@@ -39,6 +55,18 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
+          </div>
+
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {userName && (
+              <span className="text-sm text-gray-500 hidden sm:block">{userName}</span>
+            )}
+            <button
+              onClick={handleLogout}
+              className="text-sm text-gray-500 hover:text-red-600 transition-colors px-2 py-1 rounded"
+            >
+              ออกจากระบบ
+            </button>
           </div>
         </div>
       </div>

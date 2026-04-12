@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getSession } from '@/lib/session'
 
 export async function GET(req: NextRequest) {
+  const session = await getSession()
+  const { workspaceId } = session
+
   const { searchParams } = new URL(req.url)
   const status = searchParams.get('status')
   const channel = searchParams.get('channel')
 
   const orders = await prisma.order.findMany({
     where: {
+      workspaceId,
       ...(status && { status }),
       ...(channel && { channel }),
     },
@@ -21,12 +26,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(orders)
 }
 
-/**
- * POST /api/orders
- * Body: { customerName: string, productCode: string, quantity: number }
- * Creates an order immediately confirmed and reduces stock.
- */
 export async function POST(req: NextRequest) {
+  const session = await getSession()
+  const { workspaceId } = session
+
   const body = await req.json()
   const { customerName, productCode, quantity } = body
 
@@ -35,7 +38,7 @@ export async function POST(req: NextRequest) {
   }
 
   const product = await prisma.product.findUnique({
-    where: { code: productCode.toUpperCase() },
+    where: { code_workspaceId: { code: productCode.toUpperCase(), workspaceId } },
   })
 
   if (!product) {
@@ -55,10 +58,12 @@ export async function POST(req: NextRequest) {
         customerName: customerName || 'ไม่ระบุชื่อ',
         channel: 'COMMENT',
         status: 'confirmed',
+        workspaceId,
         items: {
           create: {
             productId: product.id,
             quantity: Number(quantity),
+            workspaceId,
           },
         },
       },

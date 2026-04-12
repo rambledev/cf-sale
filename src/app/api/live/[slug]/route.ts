@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-/** Public: get session + products by slug */
+/** Public: get session + products by slug (no auth required) */
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -13,8 +13,9 @@ export async function GET(
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
+  // Return only products that belong to this session's workspace
   const products = await prisma.product.findMany({
-    where: { stock: { gt: 0 } },
+    where: { workspaceId: session.workspaceId, stock: { gt: 0 } },
     orderBy: { code: 'asc' },
   })
 
